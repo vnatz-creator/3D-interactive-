@@ -434,7 +434,9 @@ function updateInputs(dt,now){
 const A={
   ctx:null,on:false,vol:.7,minor:false,
   init(){
-    const C=this.ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const AC=window.AudioContext||window.webkitAudioContext;
+    let C; try{ C=new AC({latencyHint:'playback'}); }catch(e){ C=new AC(); }
+    this.ctx=C; this.voices=0; this.lastSet={};
     this.master=C.createGain(); this.master.gain.value=this.on?this.vol:0;
     const comp=C.createDynamicsCompressor(); comp.threshold.value=-16; comp.ratio.value=4;
     this.an=C.createAnalyser(); this.an.fftSize=1024; this.an.smoothingTimeConstant=.6;
@@ -485,7 +487,11 @@ const A={
     if(echo>0){ const g=C.createGain(); g.gain.value=echo; p.connect(g); g.connect(this.echoIn); }
     return p;
   },
-  ok(){ return this.on&&this.ctx&&this.ctx.state==='running'; },
+  ok(){ return this.on&&this.ctx&&this.ctx.state==='running'&&this.voices<24; },
+  /* limite la polyphonie et libère le compteur à la fin du son */
+  track(src,dur){ this.voices++; src.onended=()=>{ this.voices--; }; },
+  /* les réglages continus sont limités à ~20 Hz pour ne pas saturer la file d'événements audio */
+  due(key){ const n=performance.now(); if(n-(this.lastSet[key]||0)<50) return false; this.lastSet[key]=n; return true; },
   bell(freq,vel=.5,pan=0,dur=1.6,delay=0){
     if(!this.ok()) return; const C=this.ctx,t=C.currentTime+delay;
     const o=C.createOscillator(),m=C.createOscillator(),mg=C.createGain(),g=C.createGain();
@@ -493,7 +499,7 @@ const A={
     mg.gain.setValueAtTime(freq*1.1*vel,t); mg.gain.exponentialRampToValueAtTime(.01,t+dur*.55);
     m.connect(mg); mg.connect(o.frequency);
     g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vel*.32,t+.006); g.gain.exponentialRampToValueAtTime(.0008,t+dur);
-    o.connect(g); g.connect(this.route(pan,.5,.15)); o.start(t); m.start(t); o.stop(t+dur+.1); m.stop(t+dur+.1);
+    o.connect(g); g.connect(this.route(pan,.5,.15)); o.start(t); m.start(t); o.stop(t+dur+.1); m.stop(t+dur+.1); this.track(o);
   },
   pluck(freq,vel=.4,pan=0,dur=.5,type='triangle',bright=.5){
     if(!this.ok()) return; const C=this.ctx,t=C.currentTime;
@@ -501,26 +507,26 @@ const A={
     o.type=type; o.frequency.value=freq; f.type='lowpass'; f.Q.value=3;
     f.frequency.setValueAtTime(300+bright*4500,t); f.frequency.exponentialRampToValueAtTime(150+bright*400,t+dur);
     g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vel*.3,t+.004); g.gain.exponentialRampToValueAtTime(.0008,t+dur);
-    o.connect(f); f.connect(g); g.connect(this.route(pan,.3,.25)); o.start(t); o.stop(t+dur+.05);
+    o.connect(f); f.connect(g); g.connect(this.route(pan,.3,.25)); o.start(t); o.stop(t+dur+.05); this.track(o);
   },
   thud(vel=.5,pan=0,f0=90,dur=.28){
     if(!this.ok()) return; const C=this.ctx,t=C.currentTime,o=C.createOscillator(),g=C.createGain();
     o.frequency.setValueAtTime(f0*2.2,t); o.frequency.exponentialRampToValueAtTime(f0,t+.07);
-    g.gain.setValueAtTime(vel*.7,t); g.gain.exponentialRampToValueAtTime(.001,t+dur);
-    o.connect(g); g.connect(this.route(pan,.15)); o.start(t); o.stop(t+dur+.05);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vel*.7,t+.004); g.gain.exponentialRampToValueAtTime(.001,t+dur);
+    o.connect(g); g.connect(this.route(pan,.15)); o.start(t); o.stop(t+dur+.05); this.track(o);
   },
   kick(vel=.9){
     if(!this.ok()) return; const C=this.ctx,t=C.currentTime,o=C.createOscillator(),g=C.createGain();
     o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(42,t+.12);
-    g.gain.setValueAtTime(vel*.9,t); g.gain.exponentialRampToValueAtTime(.001,t+.35);
-    o.connect(g); g.connect(this.master); o.start(t); o.stop(t+.4);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vel*.9,t+.004); g.gain.exponentialRampToValueAtTime(.001,t+.35);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t+.4); this.track(o);
   },
   noise(vel,pan,dur,type,f0,f1,q=1){
     if(!this.ok()) return; const C=this.ctx,t=C.currentTime,s=C.createBufferSource(),f=C.createBiquadFilter(),g=C.createGain();
     s.buffer=this.nb; f.type=type; f.Q.value=q;
     f.frequency.setValueAtTime(f0,t); f.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);
     g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vel,t+Math.min(.02,dur*.3)); g.gain.exponentialRampToValueAtTime(.001,t+dur);
-    s.connect(f); f.connect(g); g.connect(this.route(pan,.3)); s.start(t,Math.random()); s.stop(t+dur+.05);
+    s.connect(f); f.connect(g); g.connect(this.route(pan,.3)); s.start(t,Math.random()); s.stop(t+dur+.05); this.track(s);
   },
   hat(vel=.25){ this.noise(vel,(Math.random()-.5)*.5,.05,'highpass',7000,7000,.5); },
   snare(vel=.5){ this.noise(vel,0,.18,'bandpass',1900,1500,.8); this.thud(vel*.5,0,190,.12); },
@@ -529,32 +535,33 @@ const A={
     if(!this.ok()) return; const C=this.ctx,t=C.currentTime,o=C.createOscillator(),g=C.createGain();
     o.frequency.setValueAtTime(1100,t); o.frequency.exponentialRampToValueAtTime(700,t+.5);
     g.gain.setValueAtTime(.0001,t); g.gain.linearRampToValueAtTime(.22,t+.01); g.gain.exponentialRampToValueAtTime(.0005,t+.55);
-    o.connect(g); g.connect(this.route(pan,.5,.6)); o.start(t); o.stop(t+.6);
+    o.connect(g); g.connect(this.route(pan,.5,.6)); o.start(t); o.stop(t+.6); this.track(o);
   },
   chord(d,vel=.35,pan=0){ [0,2,4].forEach((k,i)=>this.bell(this.f(d+k,0),vel,pan,2.4,i*.09)); },
   /* sources continues (réglées à chaque image par les scènes) */
   pad(root,minor,cut,gain){
-    if(!this.ctx) return; const t=this.ctx.currentTime, r=[1,1.5,2,minor?2.378:2.52];
+    if(!this.ctx||!this.due('pad')) return; const t=this.ctx.currentTime, r=[1,1.5,2,minor?2.378:2.52];
     this.padO.forEach((o,i)=>o.frequency.setTargetAtTime(root*r[i],t,.5));
     this.padF.frequency.setTargetAtTime(Math.max(80,cut),t,.15); this.padG.gain.setTargetAtTime(gain,t,.3);
   },
   hum(f,cut,gain){
-    if(!this.ctx) return; const t=this.ctx.currentTime;
+    if(!this.ctx||!this.due('hum')) return; const t=this.ctx.currentTime;
     this.humSub.frequency.setTargetAtTime(f,t,.1); this.humF.frequency.setTargetAtTime(Math.max(60,cut),t,.1); this.humG.gain.setTargetAtTime(gain,t,.15);
   },
   voice(f,f1,f2,gain){
-    if(!this.ctx) return; const t=this.ctx.currentTime;
+    if(!this.ctx||!this.due('voice')) return; const t=this.ctx.currentTime;
     this.vo.frequency.setTargetAtTime(f,t,.06); this.vF[0].frequency.setTargetAtTime(f1,t,.05); this.vF[1].frequency.setTargetAtTime(f2,t,.05);
     this.vG.gain.setTargetAtTime(gain,t,.08);
   },
   tone(f,gain){
-    if(!this.ctx) return; const t=this.ctx.currentTime;
+    if(!this.ctx||!this.due('tone')) return; const t=this.ctx.currentTime;
     this.tO[0].frequency.setTargetAtTime(f,t,.12); this.tO[1].frequency.setTargetAtTime(f*1.004,t,.12); this.tO[2].frequency.setTargetAtTime(f/2,t,.12);
     this.tG.gain.setTargetAtTime(gain,t,.15);
   },
   silence(){
     if(!this.ctx) return; const t=this.ctx.currentTime;
     for(const g of [this.padG,this.humG,this.vG,this.tG]) g.gain.setTargetAtTime(0,t,.08);
+    this.lastSet={};
   }
 };
 function ensureAudio(){ if(!A.ctx) A.init(); if(A.ctx.state==='suspended') A.ctx.resume(); }
