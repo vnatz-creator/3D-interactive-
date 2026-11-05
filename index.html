@@ -29,7 +29,22 @@
   #info .brand{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
   #info h1{font-size:clamp(20px,3.2vw,30px);font-weight:600;margin:4px 0 2px;letter-spacing:-.01em}
   #info p{color:var(--dim);font-size:13px}
-  #map{margin-top:8px;font-size:12px;color:#aab6e6;line-height:1.55}
+  #map{display:none}
+  #info{top:calc(max(16px,env(safe-area-inset-top)) + 54px)}
+  #tips{position:absolute;left:max(16px,env(safe-area-inset-left));top:max(16px,env(safe-area-inset-top));
+    right:calc(max(16px,env(safe-area-inset-right)) + 200px);display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none;min-height:40px}
+  #tips::-webkit-scrollbar{display:none}
+  .tip{display:inline-flex;align-items:center;gap:6px;flex:none;height:34px;padding:0 12px 0 9px;border-radius:17px;font-size:12.5px;white-space:nowrap;
+    background:var(--panel);border:1px solid var(--line);color:var(--fg);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .tip svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  button.tip[data-s]{cursor:pointer}
+  .tip.off{opacity:.5;border-style:dashed}
+  .tip.on{border-color:rgba(126,224,168,.5);color:var(--ok)}
+  @media (max-width:640px){
+    #tips{top:calc(max(16px,env(safe-area-inset-top)) + 48px);right:max(16px,env(safe-area-inset-right))}
+    #info{top:calc(max(16px,env(safe-area-inset-top)) + 96px)}
+    .tip{height:32px;padding:0 10px 0 8px;font-size:12px}
+  }
   #note{margin-top:10px;color:var(--accent);font-size:13px;min-height:1.4em}
 
   #tools{position:absolute;right:max(16px,env(safe-area-inset-right));top:max(16px,env(safe-area-inset-top));display:flex;gap:8px}
@@ -67,6 +82,22 @@
   #bar .sep{width:1px;background:var(--line);margin:4px 2px;flex:none}
   #hint{position:absolute;left:0;right:0;bottom:calc(max(18px,env(safe-area-inset-bottom)) + 62px);text-align:center;color:var(--dim);font-size:12px;pointer-events:none}
 
+  #hud{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:calc(max(18px,env(safe-area-inset-bottom)) + 66px);z-index:5;width:232px;
+    padding:10px 12px 6px;border-radius:14px;background:rgba(10,12,26,.72);border:1px solid var(--line);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:none;pointer-events:none;font-size:12px}
+  #hud.show{display:block}
+  #hud .hh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;color:var(--dim);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase}
+  #hud .hh b{font-weight:500}
+  #hdot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok);transition:background .1s,box-shadow .1s}
+  #hdot.hit{background:#fff;box-shadow:0 0 14px #fff,0 0 4px var(--accent)}
+  .hrow{display:grid;grid-template-columns:16px 66px 1fr 76px;gap:6px;align-items:center;margin-bottom:5px}
+  .hrow svg{width:15px;height:15px;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .hrow .hl{color:var(--fg)}
+  .hrow .hb{height:5px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden;display:block}
+  .hrow .hb b{display:block;height:100%;width:0;background:linear-gradient(90deg,#4aa8ff,#c58cff);transition:width .1s}
+  .hrow .ht{color:var(--dim);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hrow.off{opacity:.4}
+  @media (max-width:640px){ #hud{width:200px;font-size:11px} .hrow{grid-template-columns:14px 58px 1fr 66px} }
   #start{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:20px;
     background:radial-gradient(ellipse at 50% 30%,rgba(60,70,140,.35),transparent 60%),var(--bg);overflow:auto}
   #start.gone{display:none}
@@ -89,6 +120,7 @@
 <canvas id="cv"></canvas>
 
 <div id="ui">
+  <div id="tips" role="list" aria-label="Ce que vous pouvez faire"></div>
   <div id="info">
     <div class="brand" id="cat"></div>
     <h1 id="sname"></h1>
@@ -114,19 +146,23 @@
 
   <aside id="panel" aria-label="Capteurs et son">
     <h2>Entrées &amp; son</h2>
-    <div class="row"><span>Son</span><button class="t" data-in="snd" aria-pressed="false">OFF</button><input id="vol" type="range" min="0" max="1" step=".01" value=".7" aria-label="Volume"></div>
+    <div class="row"><span>Son</span><button class="t" data-in="snd" aria-pressed="false">OFF</button><input id="vol" type="range" min="0" max="1" step=".01" value=".9" aria-label="Volume"></div>
+    <div class="row"><span>Sortie</span><button class="t" id="bTest">Test</button><div class="meter"><i id="mOut"></i></div></div>
+    <span class="sub" id="sndStatus"></span>
     <div class="row"><span>Micro</span><button class="t" data-in="mic" aria-pressed="false">OFF</button><div class="meter"><i id="mMic"></i></div></div>
     <div class="row"><span>Caméra</span><button class="t" data-in="cam" aria-pressed="false">OFF</button><div class="meter"><i id="mFace"></i></div></div>
     <span class="sub" id="camStatus"></span>
     <div class="row"><span>Mouvement</span><button class="t" data-in="mot" aria-pressed="false">OFF</button><div class="meter"><i id="mMot"></i></div></div>
     <span class="sub" id="motStatus"></span>
-    <div class="btns"><button id="recal">Recentrer</button><button id="bPrev">Aperçu caméra</button></div>
+    <div class="btns"><button id="recal">Recentrer</button><button id="bPrev">Aperçu caméra</button><button id="bHud">Moniteur (I)</button></div>
     <video id="vid" playsinline muted></video>
   </aside>
 
   <div id="hint">Glisser : orbiter · Molette : zoom · Clic : action · 1–9 ou ← → : changer · P pause · F plein écran · H masquer</div>
   <nav id="bar" aria-label="Expériences"></nav>
 </div>
+
+<div id="hud" aria-label="Moniteur des capteurs"></div>
 
 <div id="start">
   <div class="card">
@@ -135,7 +171,7 @@
     <div class="opts">
       <label class="opt"><input type="checkbox" id="oSnd" checked><span><b>Son</b><small>musique générative</small></span></label>
       <label class="opt"><input type="checkbox" id="oMic" checked><span><b>Micro</b><small>voix, souffle, claps</small></span></label>
-      <label class="opt"><input type="checkbox" id="oCam" checked><span><b>Caméra</b><small>visage, expressions</small></span></label>
+      <label class="opt"><input type="checkbox" id="oCam" checked><span><b>Caméra</b><small>visage, expressions, mains</small></span></label>
       <label class="opt"><input type="checkbox" id="oMot"><span><b>Mouvements</b><small>inclinaison, secousses</small></span></label>
     </div>
     <button id="go">Entrer</button>
@@ -160,9 +196,11 @@ const smooth=(cur,target,dt,att,rel)=>cur+(target-cur)*(1-Math.exp(-dt/(target>c
    Moteur 3D (canvas 2D, perspective, mélange additif)
    ============================================================ */
 const cv=$('cv'), ctx=cv.getContext('2d',{alpha:false});
-let W=0,H=0,DPR=1,focal=600,fovK=1,FK=600;
+let W=0,H=0,DPR=1,focal=600,fovK=1,FK=600,Q=1,resScale=1;   /* Q : facteur de qualité adaptatif (nombre de particules) */
 function resize(){
-  DPR=Math.min(devicePixelRatio||1,2); W=innerWidth; H=innerHeight;
+  W=innerWidth; H=innerHeight;
+  /* budget de pixels : sur grand écran / 4K on dessine à plus basse résolution (les points restent nets) */
+  DPR=Math.max(.5,Math.min(devicePixelRatio||1,2,Math.sqrt(2.2e6/(W*H)))*resScale);
   cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
   ctx.setTransform(DPR,0,0,DPR,0,0);
   focal=Math.min(W,H)*1.05;
@@ -224,8 +262,14 @@ const I={
   /* visage */
   smile:0,jaw:0,brow:0,blink:0,pucker:0,frown:0,
   face:{present:0,cx:.5,cy:.5,x:.5,y:.5,w:.3,yaw:0,pitch:0,roll:0,lm:null},
+  /* main (x,y mirroirs 0..1, y=0 en haut) : doigts levés, proximité, pince */
+  hand:{target:0,present:0,n:0,x:.5,y:.5,x2:.5,y2:.5,near:0,fingers:0,pinch:1,speed:0,lm:null,lmT:null,raw:null,handed:[]},
+  handOpen:0,fist:0,
+  /* position de la tête / main / pointeur (−1..1, y vers le haut) et rapprochement 0..1 */
+  posX:0,posY:0,near:0,
   /* image caméra brute */
   motion:0,pix:null,VW:128,VH:96,
+  impact:0,
   /* capteurs de mouvement */
   tiltX:0,tiltY:0,shake:0,motLive:false,
   pointerX:0,pointerY:0,
@@ -252,13 +296,26 @@ function analyse(an,F,T,gain,res){
   for(let k=0;k<32;k++) res.spec[k]=band(40*Math.pow(200,k/32),40*Math.pow(200,(k+1)/32));
   return res;
 }
-const rawMic={}, rawOut={};
+const rawOut={};
+/* anti-écho adaptatif : le micro est « nettoyé » de la musique de l'appli bande par bande (32 bandes log 40 Hz–8 kHz) */
+let mdb=null,odb=null; const linMic=new Float32Array(32),linOut=new Float32Array(32),refMax=new Float32Array(32),
+  echoG=new Float32Array(32).fill(.8),cleanSpec=new Float32Array(32),refHist=[];
+function linBands(an,buf,out){
+  an.getFloatFrequencyData(buf);
+  const bh=an.context.sampleRate/an.fftSize,n=buf.length;
+  for(let k=0;k<32;k++){
+    const a=Math.max(1,(40*Math.pow(200,k/32)/bh)|0),b=Math.min(n-1,Math.max(a,(40*Math.pow(200,(k+1)/32)/bh)|0)); let s=0;
+    for(let i=a;i<=b;i++){ const v=Math.pow(10,Math.max(-120,buf[i])/20); s+=v*v; }
+    out[k]=Math.sqrt(s/(b-a+1));
+  }
+}
+const toUnit=v=>clamp((20*Math.log10(v+1e-9)+78)/52,0,1);
 
 /* --- caméra / visage --- */
 const vid=$('vid'), vcv=document.createElement('canvas');
 vcv.width=I.VW; vcv.height=I.VH;
 const vctx=vcv.getContext('2d',{willReadFrequently:true});
-let landmarker=null,faceEdges=null,faceLoading=false,lastVT=-1,fcount=0,prevL=new Float32Array(I.VW*I.VH),lastFaceT=0;
+let lastDet=0,detGap=70,detPhase=0,lastHandT=0,handLM=null,landmarker=null,faceEdges=null,faceLoading=false,lastVT=-1,fcount=0,prevL=new Float32Array(I.VW*I.VH),lastFaceT=0;
 async function loadFace(){
   if(faceLoading||landmarker) return; faceLoading=true;
   I.cam.status='Chargement du détecteur de visage…'; refreshPanel();
@@ -272,6 +329,14 @@ async function loadFace(){
     try{ landmarker=await mk('GPU'); }catch(e){ landmarker=await mk('CPU'); }
     faceEdges=mod.FaceLandmarker.FACE_LANDMARKS_TESSELATION;
     I.cam.status='Visage : détecteur actif';
+    /* détecteur de main (facultatif) */
+    try{
+      const mh=d=>mod.HandLandmarker.createFromOptions(fs,{
+        baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:d},
+        runningMode:'VIDEO',numHands:2});
+      try{ handLM=await mh('GPU'); }catch(e){ handLM=await mh('CPU'); }
+      I.cam.status='Visage + main : détecteurs actifs';
+    }catch(e){ console.warn('Détecteur de main indisponible',e); I.cam.status='Visage actif (main indisponible)'; }
   }catch(e){
     console.warn('Détecteur de visage indisponible',e);
     I.cam.status='Détecteur de visage indisponible (hors-ligne ?) : mode image brute';
@@ -293,12 +358,17 @@ const BS={};
 function faceTick(now){
   if(!I.cam.on||vid.readyState<2||vid.currentTime===lastVT) return;
   lastVT=vid.currentTime; fcount++;
-  pixelTick();
-  if(!landmarker||(fcount&1)) return;
+  if(!(fcount&1)) pixelTick();
+  /* détection du visage : cadence limitée (≈12 Hz) et ajustée à son coût, pour ne pas bloquer le rendu */
+  if(!landmarker||now-lastDet<detGap) return;
+  lastDet=now;
+  /* on alterne visage / main pour étaler le coût */
+  if(handLM&&(detPhase++&1)){ handTick(now); detGap=clamp((performance.now()-now)*3,45,250); return; }
   let r; try{ r=landmarker.detectForVideo(vid,now); }catch(e){ return; }
+  detGap=clamp((performance.now()-now)*3,45,250);
   const F=I.face;
   if(r.faceLandmarks&&r.faceLandmarks.length){
-    const lm=r.faceLandmarks[0]; F.lm=lm; lastFaceT=now; F.target=1;
+    const lm=r.faceLandmarks[0]; F.lmT=lm; lastFaceT=now; F.target=1;
     if(r.faceBlendshapes&&r.faceBlendshapes[0]) for(const c of r.faceBlendshapes[0].categories) BS[c.categoryName]=c.score;
     const wd=Math.abs(lm[454].x-lm[234].x)||.3, nose=lm[1];
     F.w=lerp(F.w,wd,.3); F.cx=lerp(F.cx,nose.x,.4); F.cy=lerp(F.cy,(lm[10].y+lm[152].y)/2,.4);
@@ -306,7 +376,25 @@ function faceTick(now){
     F.yawRaw=-((nose.x-(lm[234].x+lm[454].x)/2)/wd)*4.2;
     F.pitchRaw=-((nose.y-(lm[10].y+lm[152].y)/2)/Math.abs(lm[152].y-lm[10].y))*6;
     F.roll=Math.atan2(lm[263].y-lm[33].y,lm[263].x-lm[33].x);
-  }else if(now-lastFaceT>500){ F.target=0; F.lm=null; }
+  }else if(now-lastFaceT>500){ F.target=0; F.lmT=null; }
+}
+
+/* --- main : doigts levés, poing, pince, proximité --- */
+const HAND_CONN=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+function handTick(now){
+  let r; try{ r=handLM.detectForVideo(vid,now); }catch(e){ return; }
+  const H=I.hand;
+  if(r.landmarks&&r.landmarks.length){
+    H.lmT=r.landmarks; H.target=1; lastHandT=now; H.n=r.landmarks.length;
+    H.handed=(r.handednesses||[]).map(h=>h[0]&&h[0].categoryName);
+    const lm=r.landmarks[0], d=(a,b)=>Math.hypot(lm[a].x-lm[b].x,lm[a].y-lm[b].y);
+    const size=Math.max(.02,d(0,9));
+    let fingers=0; for(const [tip,pip] of [[8,6],[12,10],[16,14],[20,18]]) if(d(0,tip)>d(0,pip)*1.12) fingers++;
+    if(d(4,17)>d(3,17)*1.05&&d(4,5)>size*.55) fingers++;
+    const cx=(lm[0].x+lm[5].x+lm[9].x+lm[13].x+lm[17].x)/5, cy=(lm[0].y+lm[5].y+lm[9].y+lm[13].y+lm[17].y)/5;
+    H.raw={x:1-cx,y:cy,near:clamp((size-.07)/.17,0,1),fingers,pinch:clamp(d(4,8)/size,0,1.5),
+      x2:H.n>1?1-r.landmarks[1][9].x:.5,y2:H.n>1?r.landmarks[1][9].y:.5};
+  }else if(now-lastHandT>350){ H.target=0; H.lmT=null; H.n=0; }
 }
 
 /* --- capteurs de mouvement --- */
@@ -332,8 +420,9 @@ async function enableMic(){
   if(I.mic.on) return true;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ say('Micro indisponible (page non sécurisée ?)'); return false; }
   try{
-    ensureAudio();
-    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false}});
+    ensureAudio(); audioSession('play-and-record');
+    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false}});
+    I.mic.status='Anti-écho actif (haut-parleurs OK)';
     const src=A.ctx.createMediaStreamSource(micStream);
     micAn=A.ctx.createAnalyser(); micAn.fftSize=1024; micAn.smoothingTimeConstant=.5;
     src.connect(micAn); micF=new Uint8Array(micAn.frequencyBinCount); micT=new Uint8Array(micAn.fftSize);
@@ -342,7 +431,7 @@ async function enableMic(){
 }
 function disableMic(){
   if(micStream) micStream.getTracks().forEach(t=>t.stop());
-  micStream=null; micAn=null; I.mic.on=false; refreshPanel();
+  micStream=null; micAn=null; I.mic.on=false; audioSession('playback'); refreshPanel();
 }
 async function enableCam(){
   if(I.cam.on) return true;
@@ -350,12 +439,12 @@ async function enableCam(){
   try{
     const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}}});
     vid.srcObject=s; await vid.play(); I.cam.on=true; I.cam.status='Caméra active';
-    loadFace(); refreshPanel(); return true;
+    setTimeout(loadFace,1500); refreshPanel(); return true;
   }catch(e){ say('Caméra refusée : '+(e.name||e.message)); refreshPanel(); return false; }
 }
 function disableCam(){
   if(vid.srcObject) vid.srcObject.getTracks().forEach(t=>t.stop());
-  vid.srcObject=null; I.cam.on=false; I.face.lm=null; I.face.target=0; I.pix=null; I.cam.status=''; refreshPanel();
+  vid.srcObject=null; I.cam.on=false; I.face.lm=null; I.face.lmT=null; I.face.target=0; I.hand.lm=null; I.hand.lmT=null; I.hand.target=0; I.pix=null; I.cam.status=''; refreshPanel();
 }
 async function enableMotion(){
   try{
@@ -374,15 +463,40 @@ function disableMotion(){ I.mot.on=false; I.motLive=false; I.tiltX=I.tiltY=0; re
 
 function updateInputs(dt,now){
   I.hit=false;
-  /* audio micro */
+  /* référence anti-écho : spectre de ce que l'appli joue (max sur ~130 ms pour absorber le retard acoustique) */
+  if(A.ctx&&A.on){
+    if(!odb) odb=new Float32Array(A.an.frequencyBinCount);
+    linBands(A.an,odb,linOut);
+    refHist.push(Float32Array.from(linOut)); if(refHist.length>8) refHist.shift();
+    for(let k=0;k<32;k++){ let m=0; for(const h of refHist) if(h[k]>m) m=h[k]; refMax[k]=m; }
+  }else refMax.fill(0);
+  /* audio micro : on retire de ce que capte le micro la part qui vient des haut-parleurs */
   if(I.mic.on&&micAn){
-    const r=analyse(micAn,micF,micT,5,rawMic);
-    I.level=smooth(I.level,r.level,dt,.04,.28); I.bass=smooth(I.bass,r.bass,dt,.05,.3);
-    I.mid=smooth(I.mid,r.mid,dt,.05,.3); I.treb=smooth(I.treb,r.treb,dt,.04,.2);
-    I.centroid=smooth(I.centroid,r.centroid,dt,.15,.3);
-    for(let k=0;k<32;k++) I.spec[k]=smooth(I.spec[k],r.spec[k],dt,.04,.25);
-    hitAvg+=(r.level-hitAvg)*Math.min(1,dt*2);
-    if(r.level>.2&&r.level>hitAvg*1.9&&now-lastHit>220){ I.hit=true; lastHit=now; }
+    if(!mdb) mdb=new Float32Array(micAn.frequencyBinCount);
+    linBands(micAn,mdb,linMic);
+    const u=cleanSpec;
+    for(let k=0;k<32;k++){
+      const m=linMic[k],rf=refMax[k];
+      if(rf>1e-4){
+        /* couplage haut-parleur→micro estimé par bande : baisse vite, remonte lentement, ignore les pics « voix » */
+        const r=m/rf;
+        if(r<echoG[k]) echoG[k]+=(r-echoG[k])*.2; else if(r<echoG[k]*2.2) echoG[k]+=(r-echoG[k])*Math.min(1,dt*.8);
+        echoG[k]=Math.min(echoG[k],1.5);
+      }
+      /* la bande n'est retenue comme « voix » que si elle dépasse nettement l'écho attendu */
+      const ex=echoG[k]*rf;
+      u[k]=m>2.8*ex+1e-5?toUnit(m-ex):0;
+    }
+    let sq=0,b=0,md=0,tr=0,num=0,den=0;
+    for(let k=0;k<32;k++){ sq+=u[k]*u[k]; num+=k*u[k]; den+=u[k]; if(k<11)b+=u[k]; else if(k<24)md+=u[k]; else tr+=u[k]; }
+    /* plancher proportionnel au volume joué : ce qui reste de l'écho ne compte pas comme voix */
+    const lv=Math.max(0,Math.min(1,Math.sqrt(sq/32)*2.6)-.32*Math.min(1,I.out.level*1.5))/(1-.32*Math.min(1,I.out.level*1.5));
+    I.level=smooth(I.level,lv,dt,.04,.28); I.bass=smooth(I.bass,Math.min(1,b/11*1.3),dt,.05,.3);
+    I.mid=smooth(I.mid,Math.min(1,md/13*1.3),dt,.05,.3); I.treb=smooth(I.treb,Math.min(1,tr/8*1.3),dt,.04,.2);
+    I.centroid=smooth(I.centroid,den>.05?num/den/31:0,dt,.15,.3);
+    for(let k=0;k<32;k++) I.spec[k]=smooth(I.spec[k],u[k],dt,.04,.25);
+    hitAvg+=(lv-hitAvg)*Math.min(1,dt*2);
+    if(lv>.2&&lv>hitAvg*1.9&&now-lastHit>220){ I.hit=true; lastHit=now; }
   }else{
     I.level=smooth(I.level,0,dt,.1,.3); I.bass=smooth(I.bass,0,dt,.1,.3); I.mid=smooth(I.mid,0,dt,.1,.3);
     I.treb=smooth(I.treb,0,dt,.1,.3); for(let k=0;k<32;k++) I.spec[k]*=.95;
@@ -397,12 +511,17 @@ function updateInputs(dt,now){
   /* visage */
   faceTick(now);
   const F=I.face;
+  /* les points du visage sont interpolés entre deux détections pour un mouvement fluide */
+  if(F.lmT){
+    if(!F.lm||F.lm.length!==F.lmT.length) F.lm=F.lmT.map(p=>({x:p.x,y:p.y,z:p.z}));
+    else{ const k=Math.min(1,dt*16); for(let i=0;i<F.lm.length;i++){ const a=F.lm[i],b=F.lmT[i]; a.x+=(b.x-a.x)*k; a.y+=(b.y-a.y)*k; a.z+=(b.z-a.z)*k; } }
+  }else F.lm=null;
   F.present=smooth(F.present,F.target||0,dt,.12,.3);
   if(F.lm){
     const sm=(a,b)=>a+(b-a)*Math.min(1,dt*14);
     const sl=BS.mouthSmileLeft||0, sr=BS.mouthSmileRight||0;
-    I.smile=sm(I.smile,clamp((sl+sr)*.9,0,1));
-    I.jaw=sm(I.jaw,clamp((BS.jawOpen||0)*1.4,0,1));
+    I.smile=sm(I.smile,clamp((sl+sr)*1.4,0,1));
+    I.jaw=sm(I.jaw,clamp((BS.jawOpen||0)*1.9,0,1));
     I.brow=sm(I.brow,clamp((BS.browInnerUp||0)*1.6+((BS.browOuterUpLeft||0)+(BS.browOuterUpRight||0))*.5,0,1));
     I.blink=sm(I.blink,clamp(((BS.eyeBlinkLeft||0)+(BS.eyeBlinkRight||0))*.6,0,1));
     I.pucker=sm(I.pucker,clamp((BS.mouthPucker||0)*1.4,0,1));
@@ -418,29 +537,78 @@ function updateInputs(dt,now){
   if(I.motLive){ I.tiltX=smooth(I.tiltX,I.rawTX||0,dt,.12,.12); I.tiltY=smooth(I.tiltY,I.rawTY||0,dt,.12,.12);
     if(I.mot.status!=='Capteurs actifs'){ I.mot.status='Capteurs actifs'; refreshPanel(); } }
   I.shake*=Math.exp(-dt*2.6);
-  /* visée composite : capteurs > tête > pointeur */
+  /* main : valeurs lissées, doigts, vitesse */
+  const Hd=I.hand;
+  Hd.present=smooth(Hd.present,Hd.target||0,dt,.1,.25);
+  if(Hd.lmT){
+    if(!Hd.lm||Hd.lm.length!==Hd.lmT.length||Hd.lm[0].length!==Hd.lmT[0].length) Hd.lm=Hd.lmT.map(h=>h.map(p=>({x:p.x,y:p.y,z:p.z})));
+    else{ const k=Math.min(1,dt*18); Hd.lm.forEach((h,j)=>h.forEach((a,i)=>{ const b=Hd.lmT[j][i]; a.x+=(b.x-a.x)*k; a.y+=(b.y-a.y)*k; a.z+=(b.z-a.z)*k; })); }
+  }else Hd.lm=null;
+  const handOn=Hd.present>.5&&!!Hd.lm&&!!Hd.raw;
+  let prevFingers=Hd.fingers;
+  if(handOn){
+    const r=Hd.raw,k=Math.min(1,dt*14),ox=Hd.x,oy=Hd.y;
+    Hd.x+=(r.x-Hd.x)*k; Hd.y+=(r.y-Hd.y)*k; Hd.x2+=(r.x2-Hd.x2)*k; Hd.y2+=(r.y2-Hd.y2)*k;
+    Hd.near+=(r.near-Hd.near)*k; Hd.pinch+=(r.pinch-Hd.pinch)*k; Hd.fingers=r.fingers;
+    Hd.speed=smooth(Hd.speed,Math.hypot(Hd.x-ox,Hd.y-oy)/Math.max(dt,.001),dt,.05,.3);
+  }else{ Hd.speed*=Math.exp(-dt*4); Hd.near*=Math.exp(-dt*3); }
+  I.handOpen=smooth(I.handOpen,handOn?Hd.fingers/5:0,dt,.12,.3);
+  I.fist=smooth(I.fist,handOn&&Hd.fingers===0?1:0,dt,.08,.25);
+  /* position de la tête / main / pointeur et rapprochement */
+  let px,py,pn;
+  if(handOn){ px=(Hd.x-.5)*2.2; py=(.5-Hd.y)*2.2; pn=Hd.near; }
+  else if(F.present>.5&&F.lm){ px=(F.x-.5)*3.6; py=(.5-F.y)*3.6; pn=clamp((F.w-.2)/.28,0,1); }
+  else{ px=I.pointerX; py=I.pointerY; pn=0; }
+  I.posX=smooth(I.posX,clamp(px,-1,1),dt,.08,.1); I.posY=smooth(I.posY,clamp(py,-1,1),dt,.08,.1); I.near=smooth(I.near,pn,dt,.1,.2);
+  /* visée composite : capteurs > main > tête (rotation + position) > pointeur */
   let tx,ty;
   if(I.motLive){ tx=I.tiltX; ty=I.tiltY; }
-  else if(F.present>.5&&F.lm){ tx=F.yaw; ty=F.pitch; }
+  else if(handOn){ tx=I.posX; ty=I.posY; }
+  else if(F.present>.5&&F.lm){ tx=clamp(F.yaw*.7+I.posX,-1,1); ty=clamp(F.pitch*.7+I.posY,-1,1); }
   else{ tx=I.pointerX; ty=I.pointerY; }
   I.aimX=smooth(I.aimX,tx,dt,.1,.1); I.aimY=smooth(I.aimY,ty,dt,.1,.1);
-  I.energy=clamp(Math.max(I.level*1.4,I.shake*.9,I.motion*.9,I.jaw*.7),0,1);
+  I.energy=clamp(Math.max(I.level*1.8,I.shake,I.motion*1.2,I.jaw*.9,Math.min(1,Hd.speed*.8),handOn?I.handOpen*.5*Hd.near+.15*Hd.near:0)*1.15,0,1);
   I.mood=clamp(I.smile*1.3-I.frown*1.1,-1,1);
+  /* événements « impact » : claps, poing qui se ferme, main qui s'ouvre, sourire/bouche soudains, secousse */
+  let ev=0;
+  if(I.hit) ev=Math.max(ev,.75);
+  if(I.shake>.75) ev=Math.max(ev,.9);
+  if(handOn&&prevFingers>=3&&Hd.fingers===0) ev=Math.max(ev,.95);
+  if(handOn&&prevFingers<=1&&Hd.fingers>=4) ev=Math.max(ev,1);
+  if(I.smile>.65&&!evState.smile){ evState.smile=true; ev=Math.max(ev,.7); } else if(I.smile<.35) evState.smile=false;
+  if(I.jaw>.7&&!evState.jaw){ evState.jaw=true; ev=Math.max(ev,.6); } else if(I.jaw<.3) evState.jaw=false;
+  if(ev>0&&now-lastImpact>450){ lastImpact=now; fireImpact(ev); }
+  I.impact=Math.max(0,I.impact-dt*1.6);
+  /* tonalité : progression d'accords + hauteur pilotée par la main/tête/pointeur + saut lors d'un impact */
+  A.update(dt,handOn);
+}
+const evState={smile:false,jaw:false}; let lastImpact=0;
+function fireImpact(s){
+  I.hit=true; I.impact=Math.max(I.impact,s); I.shake=Math.max(I.shake,s*.9);
+  A.bump=Math.max(A.bump,s*7); A.impact(s);
 }
 
 /* ============================================================
    Moteur audio génératif (WebAudio)
    ============================================================ */
 const A={
-  ctx:null,on:false,vol:.7,minor:false,
+  ctx:null,on:false,vol:.9,minor:false,
+  k:1,semiS:0,bump:0,progT:0,progI:0,   /* tonalité courante : facteur de fréquence appliqué à toutes les notes et nappes */
   init(){
     const AC=window.AudioContext||window.webkitAudioContext;
     let C; try{ C=new AC({latencyHint:'playback'}); }catch(e){ C=new AC(); }
     this.ctx=C; this.voices=0; this.lastSet={};
     this.master=C.createGain(); this.master.gain.value=this.on?this.vol:0;
-    const comp=C.createDynamicsCompressor(); comp.threshold.value=-16; comp.ratio.value=4;
+    const comp=C.createDynamicsCompressor(); comp.threshold.value=-18; comp.knee.value=12; comp.ratio.value=5;
+    const mk=C.createGain(); mk.gain.value=2.4;
+    const lim=C.createDynamicsCompressor(); lim.threshold.value=-4; lim.knee.value=0; lim.ratio.value=20; lim.attack.value=.002; lim.release.value=.1;
     this.an=C.createAnalyser(); this.an.fftSize=1024; this.an.smoothingTimeConstant=.6;
-    this.master.connect(comp); comp.connect(this.an); this.an.connect(C.destination);
+    /* renfort des graves pour petits haut-parleurs : on synthétise les harmoniques des notes graves (>130 Hz) */
+    const blp=C.createBiquadFilter(); blp.type='lowpass'; blp.frequency.value=200;
+    const ws=C.createWaveShaper(),cur=new Float32Array(1024); for(let i=0;i<1024;i++) cur[i]=Math.tanh((i/512-1)*4); ws.curve=cur;
+    const bhp=C.createBiquadFilter(); bhp.type='highpass'; bhp.frequency.value=130; const bg=C.createGain(); bg.gain.value=.4;
+    this.master.connect(comp); this.master.connect(blp); blp.connect(ws); ws.connect(bhp); bhp.connect(bg); bg.connect(comp);
+    comp.connect(mk); mk.connect(lim); lim.connect(this.an); this.an.connect(C.destination);
     /* réverbération + écho */
     this.revIn=C.createGain(); const conv=C.createConvolver(), ro=C.createGain();
     const n=(C.sampleRate*2.4)|0, ir=C.createBuffer(2,n,C.sampleRate);
@@ -472,13 +640,51 @@ const A={
     this.tG=C.createGain(); this.tG.gain.value=0;
     this.tO=[1,1.004,.5].map(r=>{ const o=C.createOscillator(); o.type='sine'; o.frequency.value=110*r; o.connect(this.tG); o.start(); return o; });
     this.tG.connect(this.master); send(this.tG,.4);
+    /* thérémine (main) : 4 partiels dont le nombre dépend des doigts, vibrato réglé par la pince */
+    this.thmF=C.createBiquadFilter(); this.thmF.type='lowpass'; this.thmF.Q.value=4; this.thmF.frequency.value=1200;
+    this.thmG=C.createGain(); this.thmG.gain.value=0;
+    this.thmP=C.createStereoPanner?C.createStereoPanner():C.createGain();
+    const lfo=C.createOscillator(); lfo.frequency.value=5.5; this.vibG=C.createGain(); this.vibG.gain.value=0; lfo.connect(this.vibG); lfo.start();
+    const ty=['triangle','sawtooth','sine','triangle'];
+    this.thmO=ty.map((t,i)=>{ const o=C.createOscillator(),g=C.createGain(); o.type=t; o.frequency.value=440; g.gain.value=i?0:1; o.connect(g); g.connect(this.thmF); this.vibG.connect(o.detune); o.start(); o.pg=g; return o; });
+    this.thmF.connect(this.thmG); this.thmG.connect(this.thmP); this.thmP.connect(this.master); send(this.thmP,.55);
+    const te=C.createGain(); te.gain.value=.25; this.thmP.connect(te); te.connect(this.echoIn);
+  },
+  /* progression d'accords + transposition pilotée par la hauteur de la main/tête/pointeur + saut d'impact */
+  update(dt,handOn){
+    this.progT+=dt*(1+I.energy*1.2); if(this.progT>7){ this.progT=0; this.progI=(this.progI+1)%4; }
+    let shift=0;
+    if(!handOn){ const n=Math.round(I.aimY*5); shift=[0,2,4,7,9][((n%5)+5)%5]+12*Math.floor(n/5); }
+    this.bump=Math.max(0,this.bump-dt*2.2);
+    this.semiS+=([0,-4,-2,3][this.progI]+shift+this.bump-this.semiS)*Math.min(1,dt*2.5);
+    this.k=Math.pow(2,this.semiS/12);
+    this.theremin(handOn);
+  },
+  theremin(handOn){
+    if(!this.ctx||!this.thmG) return; const t=this.ctx.currentTime,H=I.hand;
+    if(!handOn||!this.on){ this.thmG.gain.setTargetAtTime(0,t,.08); return; }
+    if(!this.due('thm')) return;
+    const deg=Math.round(clamp(1-(H.y-.1)/.75,0,1)*12), f=this.f(deg,0), fg=H.fingers;
+    const vol=H.n>1?clamp(1.1-H.y2,0,1)*.4:.08+H.near*.32;
+    this.thmO.forEach((o,i)=>{ o.frequency.setTargetAtTime(f*[1,1.5,2,this.minor?1.189:1.26][i],t,.05); });
+    const lv=[1,fg>=2?.5:0,fg>=3?.4:0,fg>=4?.35:0];
+    this.thmO.forEach((o,i)=>o.pg.gain.setTargetAtTime(lv[i],t,.1));
+    this.thmF.frequency.setTargetAtTime(500+fg*900,t,.08);
+    this.thmG.gain.setTargetAtTime(fg===0?0:vol,t,.06);
+    this.vibG.gain.setTargetAtTime((1-clamp(H.pinch,0,1))*60,t,.1);
+    if(this.thmP.pan) this.thmP.pan.setTargetAtTime(clamp((H.x-.5)*1.8,-1,1),t,.08);
+  },
+  impact(s=1){
+    if(!this.ctx||!this.on||this.ctx.state!=='running') return;
+    this.kick(Math.min(1,.6+s*.5)); this.thud(.9,0,48,.7); this.noise(.5*s,0,1.2,'bandpass',250,7000,.9);
+    const d=[0,2,4,5][(Math.random()*4)|0]; this.chord(d,.55*s,(Math.random()-.5)*.6); this.bell(this.f(d+10,0),.35*s,0,2.8,.12);
   },
   setOn(v){ this.on=v; if(this.ctx) this.master.gain.setTargetAtTime(v?this.vol:0,this.ctx.currentTime,.05); },
   setVol(v){ this.vol=v; if(this.ctx&&this.on) this.master.gain.setTargetAtTime(v,this.ctx.currentTime,.05); },
   /* échelle pentatonique : degré -> fréquence */
   f(d,oct=0){
     const S=this.minor?[0,3,5,7,10]:[0,2,4,7,9]; d=Math.round(d);
-    const o=oct+Math.floor(d/5); return 220*Math.pow(2,(S[((d%5)+5)%5]+12*o)/12);
+    const o=oct+Math.floor(d/5); return 220*Math.pow(2,(S[((d%5)+5)%5]+12*o)/12)*this.k;
   },
   route(pan,wet=.35,echo=0){
     const C=this.ctx, p=C.createStereoPanner?C.createStereoPanner():C.createGain();
@@ -498,7 +704,7 @@ const A={
     o.frequency.value=freq; m.frequency.value=freq*3.5;
     mg.gain.setValueAtTime(freq*1.1*vel,t); mg.gain.exponentialRampToValueAtTime(.01,t+dur*.55);
     m.connect(mg); mg.connect(o.frequency);
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vel*.32,t+.006); g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vel*.5,t+.006); g.gain.exponentialRampToValueAtTime(.0008,t+dur);
     o.connect(g); g.connect(this.route(pan,.5,.15)); o.start(t); m.start(t); o.stop(t+dur+.1); m.stop(t+dur+.1); this.track(o);
   },
   pluck(freq,vel=.4,pan=0,dur=.5,type='triangle',bright=.5){
@@ -506,7 +712,7 @@ const A={
     const o=C.createOscillator(),f=C.createBiquadFilter(),g=C.createGain();
     o.type=type; o.frequency.value=freq; f.type='lowpass'; f.Q.value=3;
     f.frequency.setValueAtTime(300+bright*4500,t); f.frequency.exponentialRampToValueAtTime(150+bright*400,t+dur);
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vel*.3,t+.004); g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vel*.45,t+.004); g.gain.exponentialRampToValueAtTime(.0008,t+dur);
     o.connect(f); f.connect(g); g.connect(this.route(pan,.3,.25)); o.start(t); o.stop(t+dur+.05); this.track(o);
   },
   thud(vel=.5,pan=0,f0=90,dur=.28){
@@ -541,8 +747,10 @@ const A={
   /* sources continues (réglées à chaque image par les scènes) */
   pad(root,minor,cut,gain){
     if(!this.ctx||!this.due('pad')) return; const t=this.ctx.currentTime, r=[1,1.5,2,minor?2.378:2.52];
-    this.padO.forEach((o,i)=>o.frequency.setTargetAtTime(root*r[i],t,.5));
-    this.padF.frequency.setTargetAtTime(Math.max(80,cut),t,.15); this.padG.gain.setTargetAtTime(gain,t,.3);
+    this.padO.forEach((o,i)=>o.frequency.setTargetAtTime(root*this.k*r[i],t,.25));
+    /* la nappe « respire » (filtre) et s'ouvre quand la visée va à droite */
+    const br=(1+.3*Math.sin(t*.55))*(1+(I.aimX+1)*.3);
+    this.padF.frequency.setTargetAtTime(Math.max(80,cut*br),t,.15); this.padG.gain.setTargetAtTime(gain,t,.3);
   },
   hum(f,cut,gain){
     if(!this.ctx||!this.due('hum')) return; const t=this.ctx.currentTime;
@@ -564,7 +772,15 @@ const A={
     this.lastSet={};
   }
 };
-function ensureAudio(){ if(!A.ctx) A.init(); if(A.ctx.state==='suspended') A.ctx.resume(); }
+function audioSession(t){ try{ if(navigator.audioSession) navigator.audioSession.type=t; }catch(e){} }
+function ensureAudio(){ if(!A.ctx){ audioSession(I.mic.on?'play-and-record':'playback'); A.init(); } if(A.ctx.state!=='running') A.ctx.resume(); }
+/* onglet masqué ou fermé : le son est coupé (la boucle d'animation s'arrête alors, plus rien ne piloterait les nappes) */
+document.addEventListener('visibilitychange',()=>{
+  if(!A.ctx) return;
+  if(document.hidden) A.ctx.suspend(); else if(!paused) A.ctx.resume();
+});
+/* un contexte suspendu (changement d'onglet, appel, micro iOS…) est relancé au prochain geste */
+['pointerdown','keydown','touchend'].forEach(ev=>addEventListener(ev,()=>{ if(A.ctx&&A.ctx.state!=='running'&&!paused) A.ctx.resume(); },{passive:true}));
 /* le mode (majeur/mineur) suit l'humeur du visage, avec hystérésis */
 function updateMood(){ if(I.mood<-.3) A.minor=true; else if(I.mood>.15) A.minor=false; }
 
@@ -576,11 +792,11 @@ const flashAt=(arr,i)=>{ arr[i]=1; };
 /* ---------- 1. Galaxie vivante ---------- */
 const galaxy={
   cat:'Classique',name:'Galaxie vivante',
-  desc:'14 000 étoiles en rotation différentielle, jouées comme un carillon.',
+  desc:'11 000 étoiles en rotation différentielle, jouées comme un carillon.',
   map:'Voix grave → pulsation des bras · Voix → rotation · Sourire → couleurs chaudes · Secousse → supernova · Aigus → scintillement',
   cam:{dist:7.5,pitch:.85,yaw:0},trail:.28,lw:1,
   init(){
-    const N=this.N=14000;
+    const N=this.N=11000;
     this.R=new Float32Array(N); this.th=new Float32Array(N); this.y=new Float32Array(N);
     this.hue=new Float32Array(N); this.sz=new Float32Array(N); this.al=new Float32Array(N); this.fl=new Float32Array(N);
     for(let i=0;i<N;i++){
@@ -597,20 +813,29 @@ const galaxy={
   },
   draw(t,dt){
     const e=I.energy; this.burst=Math.max(0,this.burst-dt*.8);
-    if(I.shake>.7&&this.burst<.4){ this.burst=1.2; A.whoosh(.5,0,2,150,3000); A.chord(2,.4); }
-    this.rot+=dt*.9*(1+I.jaw*1.5+e*1.2);
+    if(I.shake>.7&&this.burst<.4) this.burst=1.5;
+    this.rot+=dt*.9*(1+I.jaw*2.5+e*2+I.handOpen*2.5);
     this.chimeT-=dt;
     if(this.chimeT<=0||(I.hit&&this.chimeT<.4)){
       this.chimeT=(.5+rnd())/(.35+e*3.5); const i=(rnd()*this.N)|0; this.fl[i]=1;
       const R=this.R[i], a=this.th[i]+this.rot/(R+.6);
-      A.bell(A.f(Math.min(10,(R*2.6)|0)+(this.hue[i]>300?3:0),0),.22+e*.4,Math.cos(a)*R/3.6,2.2);
+      A.bell(A.f(Math.min(10,(R*2.6)|0)+(this.hue[i]>300?3:0),1),.22+e*.4,Math.cos(a)*R/3.6,2.2);
+    }
+    /* mélodie en médium (440–1 000 Hz) : audible sur les petits haut-parleurs, chaque note allume une étoile */
+    this.midT=(this.midT||0)-dt;
+    if(this.midT<=0){
+      this.midT=(.4+rnd()*.35)/(1+e*1.6); this.walk=clamp((this.walk||3)+((rnd()*3)|0)-1,0,8);
+      const i=(rnd()*this.N)|0; this.fl[i]=1; const R=this.R[i], a=this.th[i]+this.rot/(R+.6);
+      A.pluck(A.f(this.walk,1),.45+e*.3,Math.cos(a)*R/3.6,.9,'triangle',.7);
+      if(this.walk%3===0) A.bell(A.f(this.walk+5,1),.14,Math.cos(a)*R/3.6,2.4);
     }
     updateMood();
-    A.pad(110,A.minor,250+e*2200+I.bass*1500,.09+I.bass*.12+e*.05);
-    const pulse=I.bass, hOff=-I.smile*65+I.centroid*70-I.frown*-30, ws=this.burst;
-    for(let i=0;i<this.N;i++){
+    A.pad(220,A.minor,800+e*2400+I.bass*1500,.1+I.bass*.1+e*.05);
+    const pulse=Math.min(1,I.bass*1.8+I.handOpen*.4+I.impact*.7), hOff=-I.smile*65+I.centroid*70-I.frown*-30+I.impact*60, ws=this.burst;
+    const NQ=(this.N*Q)|0;
+    for(let i=0;i<NQ;i++){
       const R=this.R[i], a=this.th[i]+this.rot/(R+.6);
-      const k=1+pulse*.22*Math.sin(R*3-t*5)+ws*(.35+R*.25);
+      const k=1+pulse*.4*Math.sin(R*3-t*5)+ws*(.6+R*.4);
       const f=this.fl[i]; if(f>0) this.fl[i]=f-dt*1.2;
       if(!proj(R*k*Math.cos(a),this.y[i]*(1+pulse*1.5),R*k*Math.sin(a))) continue;
       put(this.hue[i]+hOff,Math.min(1,(this.al[i]+I.level*.5+f)*depthCue()),this.sz[i]*(1+I.treb*1.4)+f*7);
@@ -652,8 +877,9 @@ const knot={
       if(step%4===0) A.thud(.35,0,70,.3);
     }
     updateMood(); A.pad(82.4,A.minor,300+e*1800,.06+I.bass*.1);
-    const hOff=-I.smile*60+I.centroid*100, tw=1+I.jaw*2.2, rr=.34+I.bass*.28;
-    for(let i=0;i<this.M;i++){
+    const hOff=-I.smile*60+I.centroid*100, tw=1+I.jaw*3+I.handOpen*3, rr=.34+I.bass*.5+I.impact*.5;
+    const MQ=(this.M*Q)|0;
+    for(let i=0;i<MQ;i++){
       let u=this.u[i]+dt*.05*this.spd[i]*(1+e*3); if(u>=1)u-=1; this.u[i]=u;
       const k=(u*S)|0, R=rr*(1+.25*Math.sin(t*1.5+u*TAU*3))*this.rad[i];
       const a=this.phi[i]+u*TAU*2*tw+t*.8, c=Math.cos(a)*R, s=Math.sin(a)*R;
@@ -698,14 +924,14 @@ const terrain={
     if(s===0) A.bell(A.f(ch+7,0),.3,0,2.2);
   },
   draw(t,dt){
-    const bpm=100+I.energy*35+I.aimY*14, stepDur=60/bpm/4; updateMood();
+    const bpm=100+I.energy*40+I.aimY*14+I.handOpen*25, stepDur=60/bpm/4; updateMood();
     if(I.shake>.8&&this.fill===0){ this.fill=8; A.noise(.5,0,1.2,'highpass',2000,9000,.5); }
     if(I.hit){ A.snare(.5); this.kick=1; }
     this.acc+=dt; let guard=0; while(this.acc>=stepDur&&guard++<4){ this.acc-=stepDur; this.step(); }
     A.pad(55,A.minor,200+I.out.level*1500,.05);
     this.kick=Math.max(0,this.kick-dt*4);
     this.off+=dt*(5+bpm/25); while(this.off>=1){ this.off-=1; this.spawn(); }
-    const C=this.C,R=this.R,dz=.32,zF=R*dz/2,lift=1+this.kick*.4;
+    const C=this.C,R=this.R,dz=.32,zF=R*dz/2,lift=1+this.kick*.9+I.impact*.8;
     for(let j=0;j<R;j++){
       const age=j+this.off, fade=Math.min(1,age/(R*.3))*Math.min(1,(R-age)/3), z=zF-age*dz;
       for(let c=0;c<C;c++){
@@ -724,7 +950,7 @@ const terrain={
 
 /* ---------- 4. Avatar en nuage de points ---------- */
 const avatar={
-  cat:'Avatar',name:'Avatar nuage de points',
+  cat:'Avatar',name:'Avatar nuage de points',fixedView:true,   /* vue miroir fixe : pas de rotation automatique ni d'orbite */
   desc:'Votre visage reconstruit en 6 500 points et transformé en instrument : votre bouche devient une voix.',
   map:'Bouche ouverte → souffle de particules + voyelle · Sourire → étincelles + arpèges · Tête haut/bas → hauteur · Voix → vibration · Clic → style',
   cam:{dist:6.2,pitch:0,yaw:0},trail:.45,lw:1,
@@ -758,7 +984,7 @@ const avatar={
     ctx.globalAlpha=1;
   },
   draw(t,dt){
-    this.nraw=0; const F=I.face,lm=F.lm,sc0=I.jaw*.18+I.level*.5+I.shake*.9;
+    this.nraw=0; const F=I.face,lm=F.lm,sc0=I.jaw*.22+I.level*.6+I.shake*1.1+I.handOpen*.12+I.impact*.4;
     this.burst=Math.max(0,this.burst-dt*1.2); if(I.shake>.7) this.burst=1;
     if(I.cam.on&&lm&&faceEdges) this.drawFace(t,dt,lm,sc0+this.burst*.6);
     else if(I.cam.on&&I.pix) this.drawGrid(t,dt);
@@ -766,11 +992,11 @@ const avatar={
     this.sound(t,dt,!!(lm&&faceEdges));
   },
   drawFace(t,dt,lm,sc0){
-    const F=I.face,P=this.P;
+    const F=I.face,P=(this.P*Q)|0;
     if(this.edgesN!==faceEdges.length){
       this.edgesN=faceEdges.length; this.E=new Uint16Array(this.edgesN*2);
       faceEdges.forEach((e,k)=>{ this.E[2*k]=e.start; this.E[2*k+1]=e.end; });
-      for(let i=0;i<P;i++) this.ei[i]=(rnd()*this.edgesN)|0;
+      for(let i=0;i<this.P;i++) this.ei[i]=(rnd()*this.edgesN)|0;
     }
     this.fw=lerp(this.fw,F.w,.2);
     const s=2.9/Math.max(.1,this.fw), ox=F.cx*.75+.125, oy=F.cy*.75+.125, E=this.E, pix=I.pix, VW=I.VW, VH=I.VH;
@@ -883,7 +1109,7 @@ const maze={
   ping(){ this.pingR=0; A.sonar(Math.sin(performance.now()*.001)*.4); },
   draw(t,dt){
     const N=this.N,CS=this.CS,WH=this.WH,e=I.energy;
-    const spd=2.4+e*3+I.smile*1.2;
+    let spd=2.4+e*4+I.smile*1.5+I.handOpen*3; if(I.fist>.5) spd*=.15;
     /* avancée le long de la route d'exploration */
     let step=spd*dt;
     const tg=this.center(this.route[this.ri]),dx=tg[0]-this.px,dz=tg[1]-this.pz,d=Math.hypot(dx,dz);
@@ -960,12 +1186,13 @@ const voyage={
     cam.yaw-=dz(I.aimX)*dt*1.2; cam.pitch=clamp(cam.pitch-dz(I.aimY)*dt*.9,-1.3,1.3); cam.pitch*=Math.exp(-dt*.12);
     this.boost=Math.max(0,this.boost-dt*.8);
     if((I.shake>.7||I.hit)&&this.boost<.3){ this.boost=1; A.whoosh(.45,0,1.8,200,3500); }
-    const tgt=10+I.energy*26+this.boost*70; this.speed=smooth(this.speed,tgt,dt,.4,.8);
+    let tgt=10+I.energy*30+I.handOpen*30+I.near*25+this.boost*90; if(I.fist>.5) tgt*=.2; this.speed=smooth(this.speed,tgt,dt,.4,.8);
     const f=fwd(),sp=this.speed;
     cam.x+=f[0]*sp*dt; cam.y+=f[1]*sp*dt; cam.z+=f[2]*sp*dt;
     /* étoiles (champ périodique autour du vaisseau) */
     const L=this.L,len=Math.min(2.5,.2+sp*.03),hOff=this.boost*70-I.smile*70;
-    for(let i=0;i<this.N;i++){
+    const NQ=(this.N*Q)|0;
+    for(let i=0;i<NQ;i++){
       let rx=this.bx[i]-cam.x,ry=this.by[i]-cam.y,rz=this.bz[i]-cam.z;
       rx-=L*Math.floor(rx/L+.5); ry-=L*Math.floor(ry/L+.5); rz-=L*Math.floor(rz/L+.5);
       const wx=cam.x+rx,wy=cam.y+ry,wz=cam.z+rz;
@@ -1019,6 +1246,7 @@ const cymatic={
   draw(t,dt){
     let n,m; const micOn=I.mic.on&&I.level>.05;
     if(micOn){ n=2+Math.round(I.centroid*6); m=1+Math.round(Math.min(1,I.bass*1.6+I.mid*.6)*5); }
+    else if(I.hand.present>.5&&I.hand.lm){ n=2+I.hand.fingers; m=1+Math.round(I.hand.near*5); }
     else if(Math.abs(I.aimX)+Math.abs(I.aimY)>.2){ n=2+Math.round((I.aimX*.5+.5)*6); m=1+Math.round((I.aimY*.5+.5)*5); }
     else{ const k=((t/8)|0)+this.rand; n=2+(k*5)%6; m=1+(k*3+2)%5; }
     if(this.rand&&!micOn){ n=2+(this.rand*5)%6; m=1+(this.rand*3+2)%5; }
@@ -1027,10 +1255,11 @@ const cymatic={
       this.n=n; this.m=m; this.burst=1; this.lastChange=t; A.bell(A.f((n+m)%8+2,0),.35,0,1.8); A.whoosh(.2,0,.9,300,1800);
     }
     n=this.n; m=this.m; this.burst=Math.max(0,this.burst-dt*1.1);
-    const amp=.12+I.level*.55+this.burst*.3, vib=Math.cos(t*TAU*2.2);
+    const amp=.12+I.level*.7+this.burst*.3+I.impact*.5+I.handOpen*.2, vib=Math.cos(t*TAU*2.2);
     A.tone(A.f((n*3+m*2)%10,-1)*1.0,.05+amp*.22); updateMood(); A.pad(55,A.minor,200+I.level*1200,.03);
     const jit=.6+I.level*3+this.burst*4+I.shake*3, pn=Math.PI*n, pm=Math.PI*m, hOff=-I.smile*80+I.centroid*60;
-    for(let i=0;i<this.P;i++){
+    const PQ=(this.P*Q)|0;
+    for(let i=0;i<PQ;i++){
       let x=this.x[i],y=this.y[i];
       const f=Math.cos(pn*x)*Math.cos(pm*y)-Math.cos(pm*x)*Math.cos(pn*y), a=Math.abs(f), s=(.004+.03*a)*jit;
       x+=(rnd()-.5)*s*2; y+=(rnd()-.5)*s*2;
@@ -1059,13 +1288,14 @@ const swarm={
   click(){ this.burst=1.2; A.whoosh(.4,0,1.4,200,3000); },
   draw(t,dt){
     const F=I.face,L=this.L;
-    let tx,ty; if(I.motLive){ tx=I.tiltX*2.4; ty=I.tiltY*1.6; } else if(F.present>.5&&F.lm){ tx=(F.x-.5)*5.2; ty=(.5-F.y)*3.4; } else{ tx=I.pointerX*2.4; ty=I.pointerY*1.6; }
+    const tx=I.motLive?I.tiltX*2.4:I.posX*3.2, ty=I.motLive?I.tiltY*1.6:I.posY*2.1;
     L[0]+=(tx-L[0])*Math.min(1,dt*3); L[1]+=(ty-L[1])*Math.min(1,dt*3); L[2]=Math.sin(t*.4)*.8;
     this.burst=Math.max(0,this.burst-dt*.9); const e=I.energy;
     const doBurst=I.hit||I.shake>.7; if(doBurst&&this.burst<.4){ this.burst=1; A.whoosh(.4,0,1.4,200,3000); }
-    const R0f=.8+I.bass*1.6+this.burst*2.8, sw=2.2*(1+I.jaw*2+e), tb=.3+e;
+    const R0f=Math.max(.25,.8+I.bass*2.2+this.burst*3.5+I.handOpen*1.6-I.fist*.5), sw=2.2*(1+I.jaw*2+e), tb=.3+e;
     let spdSum=0;
-    for(let i=0;i<this.N;i++){
+    const NQ=(this.N*Q)|0;
+    for(let i=0;i<NQ;i++){
       const rx=this.px[i]-L[0],ry=this.py[i]-L[1],rz=this.pz[i]-L[2],d=Math.hypot(rx,ry,rz)+1e-4;
       const R0=this.sr[i]*R0f,fr=-(d-R0)*6/d;
       let ax=rx*fr+(-rz)*sw/d*1.2+Math.sin(this.py[i]*2+t)*tb, ay=ry*fr+Math.sin(this.pz[i]*2+t*1.3)*tb, az=rz*fr+(rx)*sw/d*1.2+Math.sin(this.px[i]*2+t*.7)*tb;
@@ -1105,7 +1335,7 @@ const lorenz={
   draw(t,dt){
     if(I.hit) this.seed();
     this.acc+=dt*120*(1+I.energy*1.4); const n=this.acc|0; this.acc-=n;
-    const sg=10,rh=28+I.jaw*10-I.frown*4,be=8/3,h=.006,K=this.K,X=this.x,Y=this.y,Z=this.z;
+    const sg=10,rh=28+I.jaw*10+I.handOpen*10-I.frown*4,be=8/3,h=.006,K=(this.K*Q)|0,X=this.x,Y=this.y,Z=this.z;
     for(let s=0;s<n;s++) for(let i=0;i<K;i++){
       const x=X[i],y=Y[i],z=Z[i];
       X[i]=x+h*sg*(y-x); Y[i]=y+h*(x*(rh-z)-y); Z[i]=z+h*(x*y-be*z);
@@ -1126,6 +1356,16 @@ const lorenz={
 };
 
 const scenes=[galaxy,knot,terrain,avatar,maze,voyage,cymatic,swarm,lorenz];
+/* bandeau d'aide : [icône, mot] */
+galaxy.tips=[['hand','Main'],['face','Sourire'],['mic','Voix'],['shake','Secouer'],['tilt','Incliner'],['drag','Orbiter']];
+knot.tips=[['hand','Doigts'],['mic','Voix'],['mouth','Bouche'],['face','Tête'],['drag','Orbiter']];
+terrain.tips=[['hand','Doigts'],['mic','Claps'],['tilt','Tempo'],['shake','Roulement'],['tap','Crash']];
+avatar.tips=[['face','Visage'],['mouth','Bouche'],['hand','Main'],['mic','Voix'],['tap','Style']];
+maze.tips=[['hand','Poing = stop'],['face','Regarder'],['tilt','Regarder'],['mic','Claps'],['tap','Nouveau']];
+voyage.tips=[['hand','Piloter'],['face','Piloter'],['tilt','Piloter'],['shake','Saut'],['mic','Vitesse']];
+cymatic.tips=[['hand','Doigts'],['mic','Voix'],['tilt','Figure'],['tap','Changer']];
+swarm.tips=[['hand','Guider'],['face','Guider'],['mic','Souffle'],['shake','Explose']];
+lorenz.tips=[['hand','Chaos'],['mouth','Chaos'],['mic','Clap'],['tap','Relancer']];
 
 /* ============================================================
    Interface
@@ -1147,7 +1387,7 @@ function setScene(i){
   $('cat').textContent=scene.cat+' · '+(sIdx+1)+'/'+scenes.length; $('sname').textContent=scene.name;
   $('sdesc').textContent=scene.desc; $('map').textContent=scene.map; $('note').textContent='';
   btns.forEach((b,k)=>{ b.setAttribute('aria-current',k===sIdx?'true':'false'); if(k===sIdx) b.scrollIntoView({block:'nearest',inline:'center'}); });
-  document.title=scene.name+' — Sensorium';
+  buildTips(); document.title=scene.name+' — Sensorium';
   try{ history.replaceState(null,'','#'+(sIdx+1)); }catch(e){}
 }
 function setPaused(v){
@@ -1168,25 +1408,65 @@ $('bPanel').onclick=()=>{ const o=$('panel').classList.toggle('open'); $('bPanel
 $('vol').oninput=e=>A.setVol(+e.target.value);
 $('recal').onclick=()=>{ beta0=null; say('Position neutre recalibrée'); };
 $('bPrev').onclick=()=>$('vid').classList.toggle('show');
+$('bHud').onclick=()=>{ hudOn=!hudOn; };
+$('bTest').onclick=()=>{
+  ensureAudio(); if(!A.on){ A.setOn(true); refreshPanel(); }
+  [0,2,4,7].forEach((d,i)=>A.bell(A.f(d,0),.7,(i-1.5)*.4,1.8,i*.16)); A.thud(.9,0,70,.4);
+};
 
 /* panneau des capteurs */
 function refreshPanel(){
   const st={snd:A.on,mic:I.mic.on,cam:I.cam.on,mot:I.mot.on};
   document.querySelectorAll('[data-in]').forEach(b=>{ const on=st[b.dataset.in]; b.setAttribute('aria-pressed',on); b.textContent=on?'ON':'OFF'; });
   $('camStatus').textContent=I.cam.status||''; $('motStatus').textContent=I.mot.status||'';
+  refreshTips();
 }
-document.querySelectorAll('[data-in]').forEach(b=>b.onclick=async()=>{
-  const k=b.dataset.in;
+async function toggleInput(k){
   if(k==='snd'){ ensureAudio(); A.setOn(!A.on); }
   else if(k==='mic') I.mic.on?disableMic():await enableMic();
   else if(k==='cam') I.cam.on?disableCam():await enableCam();
   else if(k==='mot') I.mot.on?disableMotion():await enableMotion();
   refreshPanel();
-});
+}
+document.querySelectorAll('[data-in]').forEach(b=>b.onclick=()=>toggleInput(b.dataset.in));
+
+/* bandeau d'aide : icônes + 1 mot ; les capteurs inactifs sont grisés et s'activent d'un toucher */
+const ICON={
+  face:'<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/><path d="M8.5 14.3c1 1.5 2.1 2.2 3.5 2.2s2.5-.7 3.5-2.2M9 9.6v.6M15 9.6v.6"/>',
+  mouth:'<path d="M3 12c2.7-3.4 5.4-4.5 9-4.5s6.3 1.1 9 4.5c-2.7 3.9-5.4 5.5-9 5.5S5.700 15.900 3 12z"/><path d="M3 12h18"/>',
+  mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.500 11a6.500 6.500 0 0 0 13 0M12 17.500V21"/>',
+  tilt:'<rect x="8" y="3.500" width="8" height="13" rx="2" transform="rotate(28 12 10)"/><path d="M4 19.500c2.500 1.600 5 2.200 8 2.200s5.500-.6 8-2.200"/>',
+  shake:'<rect x="8" y="5" width="8" height="14" rx="2"/><path d="M4.500 9v6M2 11v2M19.500 9v6M22 11v2"/>',
+  drag:'<path d="M12 3v18M3 12h18M12 3l-2.500 2.500M12 3l2.500 2.500M12 21l-2.500-2.500M12 21l2.500-2.500M3 12l2.500-2.500M3 12l2.500 2.500M21 12l-2.500-2.500M21 12l-2.500 2.500"/>',
+  tap:'<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8.500"/>'
+};
+ICON.hand='<path d="M8 13V6.500a1.500 1.500 0 0 1 3 0V12M11 11V4.500a1.500 1.500 0 0 1 3 0V12M14 11.500V6a1.500 1.500 0 0 1 3 0v7M17 10a1.500 1.500 0 0 1 3 0v5a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-2.700L4 15.500a1.500 1.500 0 0 1 2.500-1.500L8 15.500"/>';
+const SENSOR={face:'cam',mouth:'cam',hand:'cam',mic:'mic',tilt:'mot',shake:'mot'};
+const SNAME={cam:'la caméra',mic:'le micro',mot:'les capteurs de mouvement'};
+function buildTips(){
+  const box=$('tips'); box.innerHTML='';
+  for(const [ic,label] of scene.tips||[]){
+    const s=SENSOR[ic], el=document.createElement(s?'button':'span');
+    el.className='tip'; el.setAttribute('role','listitem');
+    el.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[ic]}</svg><span>${label}</span>`;
+    if(s){ el.dataset.s=s; el.onclick=()=>toggleInput(s); }
+    box.appendChild(el);
+  }
+  refreshTips();
+}
+function refreshTips(){
+  const st={cam:I.cam.on,mic:I.mic.on,mot:I.mot.on};
+  document.querySelectorAll('#tips .tip[data-s]').forEach(el=>{
+    const on=st[el.dataset.s]; el.classList.toggle('on',on); el.classList.toggle('off',!on);
+    el.title=on?'Actif':'Touchez pour activer '+SNAME[el.dataset.s];
+  });
+}
 const mMic=$('mMic'),mFace=$('mFace'),mMot=$('mMot'); let meterT=0;
 function updateMeters(dt){
   meterT+=dt; if(meterT<.1) return; meterT=0;
-  mMic.style.width=(I.level*100)+'%';
+  mMic.style.width=(I.level*100)+'%'; $('mOut').style.width=Math.min(100,I.out.level*160)+'%';
+  const ss=!A.ctx?'Moteur audio non démarré':A.ctx.state!=='running'?'Audio suspendu : touchez l’écran pour le relancer':A.on?'':'Son coupé';
+  if($('sndStatus').textContent!==ss) $('sndStatus').textContent=ss;
   mFace.style.width=(I.cam.on?Math.max(I.face.present*30,I.smile*100,I.jaw*100,I.motion*60):0)+'%';
   mMot.style.width=(I.mot.on?Math.max(I.shake*100,Math.abs(I.tiltX)*60,Math.abs(I.tiltY)*60):0)+'%';
 }
@@ -1215,6 +1495,7 @@ addEventListener('keydown',e=>{
   else if(k==='f') toggleFs();
   else if(k==='p') setPaused(!paused);
   else if(k==='r') setRot(!autoRot);
+  else if(k==='i') hudOn=!hudOn;
   else if(k==='h'){ hidden=!hidden; document.body.classList.toggle('idle',hidden); return; }
   else if(k===' '){ e.preventDefault(); scene.click&&scene.click(W/2,H/2); }
   wake();
@@ -1255,11 +1536,128 @@ cv.addEventListener('pointerup',endPtr); cv.addEventListener('pointercancel',end
 cv.addEventListener('wheel',e=>{ e.preventDefault(); zoom(Math.exp(e.deltaY*.0012)); },{passive:false});
 
 /* ============================================================
+   Retour visuel : squelette de la main, anneau du visage, moniteur des capteurs
+   ============================================================ */
+/* Main stylisée : paume translucide, doigts effilés lumineux (éteints quand ils sont repliés),
+   comètes au bout des doigts, orbe de paume, trait de pince et pastille d'état.
+   La forme est dessinée sans déformation ; seule la position suit l'image caméra (miroir). */
+const FINGERS=[[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16],[17,18,19,20]];
+const handTrails=[0,1].map(()=>[[],[],[],[],[]]);
+function pill(x,y,text,hue){
+  ctx.font='600 12px system-ui,-apple-system,"Segoe UI",sans-serif'; const w=ctx.measureText(text).width+20,h=22,r=11;
+  ctx.beginPath(); ctx.moveTo(x-w/2+r,y-h/2); ctx.arcTo(x+w/2,y-h/2,x+w/2,y+h/2,r); ctx.arcTo(x+w/2,y+h/2,x-w/2,y+h/2,r);
+  ctx.arcTo(x-w/2,y+h/2,x-w/2,y-h/2,r); ctx.arcTo(x-w/2,y-h/2,x+w/2,y-h/2,r); ctx.closePath();
+  ctx.fillStyle='rgba(10,12,26,.72)'; ctx.fill(); ctx.strokeStyle=`hsla(${hue},90%,70%,.7)`; ctx.lineWidth=1.2; ctx.stroke();
+  ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text,x,y+.5);
+}
+function drawHand(h,j,a){
+  let cx=0,cy=0; for(const i of [0,5,9,13,17]){ cx+=h[i].x; cy+=h[i].y; } cx/=5; cy/=5;
+  const k=Math.min(W,H)*.36, ax=(1-cx)*W, ay=cy*H, hue=j?325:195, tr=handTrails[j];
+  const P=i=>[ax+(cx-h[i].x)*4*k, ay+(h[i].y-cy)*3*k];
+  const d=(p,q)=>Math.hypot(h[p].x-h[q].x,h[p].y-h[q].y), size=Math.max(.02,d(0,9));
+  const ext=FINGERS.map((c,f)=>f===0?(d(4,17)>d(3,17)*1.05&&d(4,5)>size*.55):d(0,c[3])>d(0,c[1])*1.12);
+  const count=ext.filter(Boolean).length, pinch=d(4,8)/size<.45, p0=P(0);
+  ctx.save(); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.globalCompositeOperation='lighter';
+  /* orbe de paume */
+  const near=clamp((size-.07)/.17,0,1), pr=40+near*70, g=ctx.createRadialGradient(ax,ay,0,ax,ay,pr);
+  g.addColorStop(0,`hsla(${hue},95%,65%,${.3*a})`); g.addColorStop(1,`hsla(${hue},95%,65%,0)`);
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(ax,ay,pr,0,TAU); ctx.fill();
+  /* paume en verre */
+  const p9=P(9), lg=ctx.createLinearGradient(p0[0],p0[1],p9[0],p9[1]);
+  lg.addColorStop(0,`hsla(${hue},90%,60%,${.02*a})`); lg.addColorStop(1,`hsla(${hue+30},90%,70%,${.2*a})`);
+  ctx.beginPath(); [0,1,5,9,13,17].forEach((i,n)=>{ const p=P(i); n?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }); ctx.closePath();
+  ctx.fillStyle=lg; ctx.fill(); ctx.strokeStyle=`hsla(${hue},90%,75%,${.25*a})`; ctx.lineWidth=1.2; ctx.stroke();
+  /* doigts effilés + halo */
+  const T0=performance.now()/1000;
+  FINGERS.forEach((c,f)=>{
+    const e=ext[f], al=(e?.95:.4)*a, lt=e?72:55, hh=hue+f*9;
+    const pts=f?[P(c[0]),P(c[1]),P(c[2]),P(c[3])]:[P(c[0]),P(c[1]),P(c[2]),P(c[3])];
+    for(let s=0;s<3;s++){
+      const w=[9,7,5][s]*(e?1:.8)*(.75+near*.5);
+      ctx.beginPath(); ctx.moveTo(pts[s][0],pts[s][1]); ctx.lineTo(pts[s+1][0],pts[s+1][1]);
+      ctx.strokeStyle=`hsla(${hh},95%,60%,${.13*al})`; ctx.lineWidth=w+9; ctx.stroke();
+      ctx.strokeStyle=`hsla(${hh},95%,${lt}%,${al})`; ctx.lineWidth=w; ctx.stroke();
+      ctx.strokeStyle=`hsla(${hh},100%,92%,${.55*al})`; ctx.lineWidth=Math.max(1,w*.28); ctx.stroke();
+    }
+    /* articulations */
+    ctx.fillStyle=`hsla(${hh},100%,88%,${.8*al})`;
+    for(let s=0;s<3;s++){ ctx.beginPath(); ctx.arc(pts[s][0],pts[s][1],2.6,0,TAU); ctx.fill(); }
+    /* bout du doigt : anneau pulsé + comète */
+    const tp=pts[3], pulse=e?3*Math.sin(T0*6+f):0;
+    ctx.strokeStyle=`hsla(${hh},100%,80%,${(e?.9:.35)*a})`; ctx.lineWidth=1.6; ctx.beginPath(); ctx.arc(tp[0],tp[1],8+pulse,0,TAU); ctx.stroke();
+    ctx.fillStyle=`hsla(${hh},100%,92%,${a})`; ctx.beginPath(); ctx.arc(tp[0],tp[1],3.2,0,TAU); ctx.fill();
+    const t=tr[f]; t.push(tp[0],tp[1]); if(t.length>28) t.splice(0,2);
+    for(let i=2;i<t.length;i+=2){
+      const q=i/t.length; ctx.strokeStyle=`hsla(${hh},100%,75%,${q*.5*a*(e?1:.4)})`; ctx.lineWidth=1+q*4;
+      ctx.beginPath(); ctx.moveTo(t[i-2],t[i-1]); ctx.lineTo(t[i],t[i+1]); ctx.stroke();
+    }
+  });
+  /* pince : trait + anneau entre pouce et index */
+  if(pinch){
+    const A_=P(4),B_=P(8),mx=(A_[0]+B_[0])/2,my=(A_[1]+B_[1])/2;
+    ctx.strokeStyle=`rgba(255,255,255,${.85*a})`; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(A_[0],A_[1]); ctx.lineTo(B_[0],B_[1]); ctx.stroke();
+    ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(mx,my,12+3*Math.sin(T0*10),0,TAU); ctx.stroke();
+  }
+  ctx.globalCompositeOperation='source-over';
+  pill(p0[0],p0[1]+Math.min(70,30+near*30),(count===0?'Poing':count+(count>1?' doigts':' doigt'))+(pinch?' · pince':''),hue);
+  ctx.restore();
+}
+function drawOverlay(){
+  const Hd=I.hand,F=I.face;
+  if(Hd.lm&&Hd.present>.15){
+    const a=Math.min(1,Hd.present);
+    Hd.lm.forEach((h,j)=>drawHand(h,j,a));
+  }else for(const tr of handTrails) for(const f of tr) f.length=0;
+  if(hudVisible()&&F.lm&&F.present>.3){
+    ctx.save(); ctx.strokeStyle='rgba(126,224,168,.5)'; ctx.setLineDash([6,6]); ctx.lineWidth=1.5; ctx.beginPath();
+    ctx.ellipse(F.x*W,F.y*H,F.w*W*.55,F.w*W*.7,0,0,TAU); ctx.stroke(); ctx.restore();
+  }
+}
+let hudOn=false;
+const hudVisible=()=>hudOn||!!document.fullscreenElement||!!document.webkitFullscreenElement;
+const NOTES=['La','La♯','Si','Do','Do♯','Ré','Ré♯','Mi','Fa','Fa♯','Sol','Sol♯'];
+const HUD_ROWS=[
+  ['mic','Micro',()=>[I.mic.on?I.level:null,I.mic.on?Math.round(I.level*100)+'%':'off']],
+  ['face','Visage',()=>[I.cam.on?I.face.present:null,!I.cam.on?'off':I.face.lm?'détecté':'aucun']],
+  ['face','Sourire',()=>[I.face.lm?I.smile:null,I.face.lm?Math.round(I.smile*100)+'%':'–']],
+  ['mouth','Bouche',()=>[I.face.lm?I.jaw:null,I.face.lm?Math.round(I.jaw*100)+'%':'–']],
+  ['hand','Main',()=>{ const H=I.hand; if(!I.cam.on) return [null,'off'];
+    if(!H.lm||H.present<.4) return [0,handLM?'aucune':'chargement…'];
+    return [H.near,(H.fingers===0?'poing':H.fingers+' doigt'+(H.fingers>1?'s':''))+(H.pinch<.4?' · pince':'')+(H.n>1?' · 2 mains':'')]; }],
+  ['shake','Secousse',()=>[I.mot.on?I.shake:null,!I.mot.on?'off':I.motLive?Math.round(I.shake*100)+'%':'pas de capteur']],
+  ['tilt','Inclinaison',()=>[I.motLive?(Math.abs(I.tiltX)+Math.abs(I.tiltY))/2:null,I.motLive?Math.round(I.tiltX*100)+' / '+Math.round(I.tiltY*100):'–']],
+  ['drag','Visée',()=>[null,(I.aimX>=0?'+':'')+I.aimX.toFixed(2)+' / '+(I.aimY>=0?'+':'')+I.aimY.toFixed(2)]],
+  ['tap','Tonalité',()=>{ const s=Math.round(12*Math.log2(A.k)); return [clamp(I.impact,0,1),NOTES[((s%12)+12)%12]+(s>=0?' +':' ')+s]; }]
+];
+let hudBuilt=false,hudT=0;
+function buildHud(){
+  const box=$('hud'); box.innerHTML='<div class="hh"><b>Capteurs en direct</b><span id="hdot"></span></div>';
+  HUD_ROWS.forEach(([ic,label],i)=>{
+    const r=document.createElement('div'); r.className='hrow';
+    r.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[ic]}</svg><span class="hl">${label}</span><i class="hb"><b></b></i><span class="ht"></span>`;
+    box.appendChild(r);
+  });
+  hudBuilt=true;
+}
+function updateHud(dt){
+  const box=$('hud'),vis=hudVisible(); box.classList.toggle('show',vis);
+  if(!vis) return; if(!hudBuilt) buildHud();
+  hudT+=dt; if(hudT<.1) return; hudT=0;
+  const rows=box.querySelectorAll('.hrow');
+  HUD_ROWS.forEach(([,, get],i)=>{
+    const [v,t]=get(),r=rows[i],on=v!==null;
+    r.classList.toggle('off',!on&&t==='off'); r.querySelector('.hb b').style.width=(on?clamp(v,0,1)*100:0)+'%'; r.querySelector('.ht').textContent=t;
+  });
+  $('hdot').className=I.impact>.15?'hit':'';
+}
+
+/* ============================================================
    Boucle principale
    ============================================================ */
 let last=performance.now(),T=0;
 function frame(now){
   requestAnimationFrame(frame);
+  if(now-last<12) return;        /* plafond ~80 i/s : évite de travailler pour rien sur écrans 120/144 Hz */
   const dt=Math.min((now-last)/1000,.05); last=now;
   const sdt=paused?0:dt; T+=sdt;
   updateInputs(dt,now);
@@ -1268,19 +1666,43 @@ function frame(now){
     const k=Math.exp(-dt*3); cam.vy*=k; cam.vp*=k;
     if(autoRot&&!paused&&!scene.fps) cam.yaw+=.13*dt;
   }
-  /* inclinaison du téléphone → décalage de caméra (scènes en orbite) ; regard (labyrinthe) */
-  if(scene.fps){ cam.oy=scene.look?-I.aimX*.8:0; cam.op=scene.look?-I.aimY*.45:0; cam.fog=scene.cam.fog; }
-  else{ cam.oy=I.motLive?I.tiltX*.9:0; cam.op=I.motLive?-I.tiltY*.5:0; cam.fog=cam.dist; }
-  FK=focal*fovK;
+  /* le point de vue suit l'inclinaison du téléphone, ou la position de la tête / main / souris ;
+     se pencher vers l'écran rapproche la caméra ; chaque impact secoue et « pousse » l'image */
+  const bu=I.impact, d0=cam.dist;
+  if(scene.fixedView){ cam.yaw=0; cam.pitch=0; cam.vy=cam.vp=0; }
+  if(scene.fixedView){ cam.oy=0; cam.op=0; cam.fog=cam.dist; }
+  else if(scene.fps){ cam.oy=scene.look?-I.aimX*.8:0; cam.op=scene.look?-I.aimY*.45:0; cam.fog=scene.cam.fog; }
+  else{
+    cam.oy=I.motLive?I.tiltX*.9:I.posX*.75; cam.op=I.motLive?-I.tiltY*.5:-I.posY*.45;
+    cam.dist=d0*(1-.4*I.near); cam.fog=cam.dist;
+  }
+  if(bu>.02){ cam.oy+=(rnd()-.5)*bu*.16; cam.op+=(rnd()-.5)*bu*.11; }
+  FK=focal*fovK*(1+bu*.2);
   const yw=cam.yaw+cam.oy,pc=cam.pitch+cam.op;
   cY=Math.cos(yw); sY=Math.sin(yw); cP=Math.cos(pc); sP=Math.sin(pc);
   ctx.globalCompositeOperation='source-over';
   ctx.fillStyle=`rgba(5,6,12,${scene.trail})`; ctx.fillRect(0,0,W,H);
   scene.draw(T,sdt);
   flush();
+  cam.dist=d0;
   if(scene.post) scene.post();
+  if(bu>.04){   /* flash coloré + onde de choc */
+    ctx.globalCompositeOperation='lighter';
+    ctx.fillStyle=`hsla(${(T*90)%360},85%,55%,${(bu*.2).toFixed(3)})`; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle=`hsla(${(T*90+60)%360},90%,70%,${(bu*.7).toFixed(3)})`; ctx.lineWidth=3+bu*10;
+    ctx.beginPath(); ctx.arc(W/2,H/2,(1-Math.min(1,bu))*Math.max(W,H)*.7+10,0,TAU); ctx.stroke();
+    ctx.globalCompositeOperation='source-over';
+  }
+  drawOverlay();
   updateMeters(dt);
+  updateHud(dt);
+  /* qualité adaptative : on réduit le nombre de particules si l'image saccade, on le remonte si tout va bien */
+  if(!paused&&!document.hidden){
+    qAcc+=dt; qN++;
+    if(qAcc>1){ const fps=qN/qAcc; if(fps<42){ if(Q>.4) Q=Math.max(.35,Q*.82); else if(resScale>.55){ resScale*=.85; resize(); } } else if(fps>56) Q=Math.min(1,Q*1.06); qAcc=0; qN=0; }
+  }
 }
+let qAcc=0,qN=0;
 
 resize();
 const h0=parseInt(location.hash.slice(1),10);
